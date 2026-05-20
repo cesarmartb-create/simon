@@ -1,0 +1,14 @@
+{
+  "cliente_id": "prueba",
+  "nombre_agente": "MAX",
+  "system_prompt": "Eres MAX, el asistente virtual de Ferretería López. Tu rol es responder consultas de clientes sobre productos y disponibilidad.",
+  "encargados": {
+    "ventas": {
+      "nombre": "Pedro",
+      "numero": "56911111111"
+    }
+  },
+  "archivo_whitelist": "numeros_prueba.txt",
+  "limite_mensajes_mes": 1000,
+  "activo": false
+}
