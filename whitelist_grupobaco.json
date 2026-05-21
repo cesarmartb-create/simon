@@ -2,16 +2,16 @@
   "empleados": [
     {
       "numero": "56993434939",
-      "nombre": "Julia Salazar",
-      "cargo": "gerente_general",
+      "nombre": "Cesar Martinez",
+      "cargo": "gerente_comercial",
       "ubicacion": "corporativo",
       "notificar_a": "cesar.martinez@grupobaco.cl",
       "copia_a": ""
     },
     {
       "numero": "56986696676",
-      "nombre": "Cesar Martinez",
-      "cargo": "gerente_comercial",
+      "nombre": "Julia Salazar",
+      "cargo": "gerente_general",
       "ubicacion": "corporativo",
       "notificar_a": "cesar.martinez@grupobaco.cl",
       "copia_a": ""
