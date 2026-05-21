@@ -5,8 +5,8 @@ import anthropic
 from flask import Flask, request
 from dotenv import load_dotenv
 import requests
-from sendgrid import SendGridAPIClient
-from sendgrid.mail import Mail
+import sendgrid
+from sendgrid.helpers.mail import Mail
 
 load_dotenv()
 
@@ -80,7 +80,7 @@ Este mensaje fue generado automáticamente por Simón.
     if copia:
         mensaje.add_cc(copia)
     try:
-        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg = sendgrid.SendGridAPIClient(api_key=SENDGRID_API_KEY)
         sg.send(mensaje)
         print(f"Correo enviado a {destinatario}")
     except Exception as e:
