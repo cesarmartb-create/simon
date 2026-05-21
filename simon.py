@@ -63,9 +63,42 @@ def obtener_empleado(whitelist, numero):
     return whitelist.get(numero, None)
 
 # ==========================================
+# FERIADOS CHILENOS
+# ==========================================
+def obtener_feriados_chile():
+    anio = datetime.now().year
+    return [
+        datetime(anio, 1, 1),   # Año Nuevo
+        datetime(anio, 4, 18),  # Viernes Santo (aproximado)
+        datetime(anio, 4, 19),  # Sábado Santo
+        datetime(anio, 5, 1),   # Día del Trabajo
+        datetime(anio, 5, 21),  # Glorias Navales
+        datetime(anio, 6, 20),  # Día de los Pueblos Indígenas
+        datetime(anio, 6, 29),  # San Pedro y San Pablo
+        datetime(anio, 7, 16),  # Virgen del Carmen
+        datetime(anio, 8, 15),  # Asunción de la Virgen
+        datetime(anio, 9, 18),  # Fiestas Patrias
+        datetime(anio, 9, 19),  # Día de las Glorias del Ejército
+        datetime(anio, 10, 12), # Día del Encuentro de Dos Mundos
+        datetime(anio, 10, 31), # Día de las Iglesias Evangélicas
+        datetime(anio, 11, 1),  # Día de Todos los Santos
+        datetime(anio, 12, 8),  # Inmaculada Concepción
+        datetime(anio, 12, 25), # Navidad
+    ]
+
+def es_dia_habil(fecha):
+    feriados = obtener_feriados_chile()
+    if fecha.weekday() == 6:  # domingo
+        return False
+    for feriado in feriados:
+        if fecha.date() == feriado.date():
+            return False
+    return True
+
+# ==========================================
 # MEMORIA DE CONVERSACIÓN EN REDIS
 # ==========================================
-HORAS_EXPIRACION = 24
+DIAS_EXPIRACION = 5
 
 def obtener_sesion(numero):
     try:
@@ -76,16 +109,20 @@ def obtener_sesion(numero):
     except:
         return None
 
-def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a=""):
+def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a="", caso_derivado=False, fecha_derivacion="", escalamiento_nivel=0, mensaje_caso=""):
     try:
         sesion = {
             "historial": historial,
             "pendiente_correo": pendiente_correo,
             "notificar_a": notificar_a,
             "copia_a": copia_a,
+            "caso_derivado": caso_derivado,
+            "fecha_derivacion": fecha_derivacion,
+            "escalamiento_nivel": escalamiento_nivel,
+            "mensaje_caso": mensaje_caso,
             "ultima_actividad": datetime.now().isoformat()
         }
-        redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=HORAS_EXPIRACION * 3600)
+        redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=DIAS_EXPIRACION * 24 * 3600)
     except Exception as e:
         print(f"Error guardando sesion en Redis: {e}")
 
@@ -101,18 +138,32 @@ def cerrar_sesion(numero):
 def formatear_cargo(cargo):
     return cargo.replace("_", " ").title()
 
-def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original, numero_empleado=""):
-    cargo = formatear_cargo(cargo)
+def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original, numero_empleado="", asunto_extra="", nivel_escalamiento=0):
+    cargo_fmt = formatear_cargo(cargo)
     remitente = "simon@grupobaco.cl"
-    asunto = f"Simón — Consulta de {nombre_empleado} ({cargo})"
+
+    if nivel_escalamiento == 0:
+        asunto = f"Simón — Consulta de {nombre_empleado} ({cargo_fmt})"
+        titulo_correo = "Simón — Nueva Consulta"
+        alerta_html = ""
+    elif nivel_escalamiento == 1:
+        asunto = f"⚠️ Simón — Recordatorio: Consulta de {nombre_empleado} sin respuesta"
+        titulo_correo = "Simón — Recordatorio de Consulta"
+        alerta_html = "<p style='color:#E67E22; font-weight:bold;'>⚠️ Esta consulta lleva 1 día hábil sin respuesta.</p>"
+    else:
+        asunto = f"🚨 Simón — Escalamiento: Consulta de {nombre_empleado} sin respuesta"
+        titulo_correo = "Simón — Caso Escalado"
+        alerta_html = f"<p style='color:#E74C3C; font-weight:bold;'>🚨 Esta consulta lleva {nivel_escalamiento} días hábiles sin respuesta y ha sido escalada.</p>"
+
     cuerpo_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="background-color: #2C3E50; padding: 20px; border-radius: 8px 8px 0 0;">
-            <h2 style="color: white; margin: 0;">Simón — Nueva Consulta</h2>
+            <h2 style="color: white; margin: 0;">{titulo_correo}</h2>
             <p style="color: #BDC3C7; margin: 5px 0 0 0;">Grupo Baco</p>
         </div>
         <div style="background-color: #F8F9FA; padding: 25px; border-radius: 0 0 8px 8px; border: 1px solid #E0E0E0;">
-            <p style="color: #555;">Hola, tienes una nueva consulta que requiere tu atención:</p>
+            {alerta_html}
+            <p style="color: #555;">Hola, tienes una consulta que requiere tu atención:</p>
             <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
                 <tr style="background-color: #EAF2FF;">
                     <td style="padding: 10px; font-weight: bold; color: #2C3E50; width: 30%;">Colaborador</td>
@@ -120,7 +171,7 @@ def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original,
                 </tr>
                 <tr>
                     <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Cargo</td>
-                    <td style="padding: 10px; color: #555;">{cargo}</td>
+                    <td style="padding: 10px; color: #555;">{cargo_fmt}</td>
                 </tr>
                 <tr style="background-color: #EAF2FF;">
                     <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Teléfono</td>
@@ -171,7 +222,7 @@ def enviar_mensaje(numero, mensaje):
     return response.json()
 
 # ==========================================
-# DETECTAR CONFIRMACIÓN
+# DETECTAR INTENCIONES
 # ==========================================
 def es_confirmacion(texto):
     texto = texto.lower().strip()
@@ -182,6 +233,13 @@ def es_rechazo(texto):
     texto = texto.lower().strip()
     palabras = ["no", "nope", "cancel", "cancela", "olvida", "no gracias"]
     return any(p in texto for p in palabras)
+
+def es_sin_respuesta(texto):
+    texto = texto.lower().strip()
+    frases = ["no me han respondido", "no me respondieron", "sigo esperando", "nadie me ha contactado",
+              "no he tenido respuesta", "todavía nada", "sin respuesta", "no me llamaron",
+              "no me escribieron", "no me contactaron", "siguen sin responderme"]
+    return any(f in texto for f in frases)
 
 # ==========================================
 # FUNCIÓN PRINCIPAL: PROCESAR MENSAJE
@@ -204,18 +262,48 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     sesion = obtener_sesion(numero)
 
+    # Caso 1: esperando confirmación para derivar
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
             primer_mensaje = sesion["historial"][0]["content"] if sesion["historial"] else mensaje_usuario
-            enviar_correo(sesion["notificar_a"], sesion["copia_a"], nombre, cargo, primer_mensaje, numero)
-            cerrar_sesion(numero)
-            enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te contactará a la brevedad.")
+            enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
+            guardar_sesion(
+                numero,
+                historial=[],
+                pendiente_correo=False,
+                notificar_a=notificar_a,
+                copia_a=copia_a,
+                caso_derivado=True,
+                fecha_derivacion=datetime.now().isoformat(),
+                escalamiento_nivel=0,
+                mensaje_caso=primer_mensaje
+            )
+            enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te contactará durante el próximo día hábil.\n\nSi no has tenido respuesta, escríbeme y me encargo de escalar tu caso.")
             return
         elif es_rechazo(mensaje_usuario):
             cerrar_sesion(numero)
             enviar_mensaje(numero, f"Entendido {nombre}, quedamos atentos si necesitas algo más.")
             return
 
+    # Caso 2: caso ya derivado y empleado reporta sin respuesta
+    if sesion and sesion.get("caso_derivado") and es_sin_respuesta(mensaje_usuario):
+        nivel = sesion.get("escalamiento_nivel", 0) + 1
+        mensaje_caso = sesion.get("mensaje_caso", "consulta anterior")
+
+        if nivel == 1:
+            # Escala a María Andrea
+            correo_escalamiento = config.get("correo_escalamiento_1", copia_a)
+            enviar_correo(correo_escalamiento, "cesar.martinez@grupobaco.cl", nombre, cargo, mensaje_caso, numero, nivel_escalamiento=nivel)
+            guardar_sesion(numero, [], False, notificar_a, copia_a, True, sesion.get("fecha_derivacion"), nivel, mensaje_caso)
+            enviar_mensaje(numero, f"Entendido {nombre}. Escalé tu caso a la siguiente persona responsable e incluí el historial completo. Te contactarán durante el próximo día hábil.")
+        else:
+            # Escala a César
+            enviar_correo("cesar.martinez@grupobaco.cl", "", nombre, cargo, mensaje_caso, numero, nivel_escalamiento=nivel)
+            cerrar_sesion(numero)
+            enviar_mensaje(numero, f"Entendido {nombre}. Tu caso fue escalado a la Gerencia Comercial con el historial completo. Te contactarán a la brevedad.")
+        return
+
+    # Caso 3: conversación normal
     historial = sesion["historial"] if sesion else []
     historial.append({"role": "user", "content": mensaje_usuario})
 
