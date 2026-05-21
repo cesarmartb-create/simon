@@ -41,30 +41,16 @@ def obtener_cliente_activo():
 # ==========================================
 # WHITELIST POR CLIENTE
 # ==========================================
-def cargar_numeros_autorizados(archivo_whitelist):
+def cargar_whitelist(archivo_whitelist):
     try:
         with open(archivo_whitelist, "r") as f:
-            return [line.strip() for line in f if line.strip()]
+            data = json.load(f)
+            return {e["numero"]: e for e in data["empleados"]}
     except:
-        return []
+        return {}
 
-# ==========================================
-# FUNCIONES DE WHATSAPP
-# ==========================================
-def enviar_mensaje(numero, mensaje):
-    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": numero,
-        "type": "text",
-        "text": {"body": mensaje}
-    }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
+def obtener_empleado(whitelist, numero):
+    return whitelist.get(numero, None)
 
 # ==========================================
 # FUNCIÓN PRINCIPAL: PROCESAR MENSAJE
@@ -76,17 +62,32 @@ def procesar_mensaje(numero, mensaje_usuario):
         print("No hay cliente activo configurado")
         return
 
-    numeros_autorizados = cargar_numeros_autorizados(config["archivo_whitelist"])
+    whitelist = cargar_whitelist(config["archivo_whitelist"])
+    empleado = obtener_empleado(whitelist, numero)
 
-    if numero not in numeros_autorizados:
+    if not empleado:
         return
+
+    nombre = empleado.get("nombre", "colaborador")
+    cargo = empleado.get("cargo", "")
+    notificar_a = empleado.get("notificar_a", "")
+    copia_a = empleado.get("copia_a", "")
+
+    system_prompt_personalizado = (
+        config["system_prompt"] +
+        f"
+
+El colaborador que escribe se llama {nombre} y su cargo es {cargo}. "
+        f"Salúdalo por su nombre. "
+        f"Si su consulta requiere derivación, el responsable será notificado por correo."
+    )
 
     cliente_api = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
 
     respuesta = cliente_api.messages.create(
         model="claude-sonnet-4-5",
         max_tokens=500,
-        system=config["system_prompt"],
+        system=system_prompt_personalizado,
         messages=[
             {"role": "user", "content": mensaje_usuario}
         ]

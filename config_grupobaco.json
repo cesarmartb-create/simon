@@ -16,7 +16,7 @@
       "numero": "56912345680"
     }
   },
-  "archivo_whitelist": "numeros_grupobaco.txt",
+  "archivo_whitelist": "whitelist_grupobaco.json",
   "limite_mensajes_mes": 5000,
   "activo": true
 }

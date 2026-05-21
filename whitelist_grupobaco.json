@@ -1,0 +1,28 @@
+{
+  "empleados": [
+    {
+      "numero": "56993434939",
+      "nombre": "Julia Salazar",
+      "cargo": "gerente_general",
+      "ubicacion": "corporativo",
+      "notificar_a": "cesar.martinez@grupobaco.cl",
+      "copia_a": ""
+    },
+    {
+      "numero": "56986696676",
+      "nombre": "Cesar Martinez",
+      "cargo": "gerente_comercial",
+      "ubicacion": "corporativo",
+      "notificar_a": "cesar.martinez@grupobaco.cl",
+      "copia_a": ""
+    },
+    {
+      "numero": "56912345678",
+      "nombre": "Ana Prueba",
+      "cargo": "auxiliar_de_farmacia",
+      "ubicacion": "local_prueba",
+      "notificar_a": "cesar.martinez@jcsfarmacias.cl",
+      "copia_a": "cesarmartb@gmail.com"
+    }
+  ]
+}
