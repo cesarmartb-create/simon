@@ -103,7 +103,7 @@ def formatear_cargo(cargo):
 
 def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original):
     cargo = formatear_cargo(cargo)
-    remitente = "cesarmartb@gmail.com"
+    remitente = "simon@grupobaco.cl"
     asunto = f"Simón — Consulta de {nombre_empleado} ({cargo})"
     cuerpo_html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
