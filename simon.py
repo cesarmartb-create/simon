@@ -101,7 +101,7 @@ def cerrar_sesion(numero):
 def formatear_cargo(cargo):
     return cargo.replace("_", " ").title()
 
-def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original):
+def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original, numero_empleado=""):
     cargo = formatear_cargo(cargo)
     remitente = "simon@grupobaco.cl"
     asunto = f"Simón — Consulta de {nombre_empleado} ({cargo})"
@@ -123,6 +123,10 @@ def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original)
                     <td style="padding: 10px; color: #555;">{cargo}</td>
                 </tr>
                 <tr style="background-color: #EAF2FF;">
+                    <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Teléfono</td>
+                    <td style="padding: 10px; color: #555;">+{numero_empleado}</td>
+                </tr>
+                <tr>
                     <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Consulta</td>
                     <td style="padding: 10px; color: #555;">{mensaje_original}</td>
                 </tr>
@@ -203,7 +207,7 @@ def procesar_mensaje(numero, mensaje_usuario):
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
             primer_mensaje = sesion["historial"][0]["content"] if sesion["historial"] else mensaje_usuario
-            enviar_correo(sesion["notificar_a"], sesion["copia_a"], nombre, cargo, primer_mensaje)
+            enviar_correo(sesion["notificar_a"], sesion["copia_a"], nombre, cargo, primer_mensaje, numero)
             cerrar_sesion(numero)
             enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te contactará a la brevedad.")
             return
