@@ -101,26 +101,46 @@ def cerrar_sesion(numero):
 # ==========================================
 # FUNCIÓN DE CORREO
 # ==========================================
+def formatear_cargo(cargo):
+    return cargo.replace("_", " ").title()
+
 def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original):
+    cargo = formatear_cargo(cargo)
     remitente = "cesarmartb@gmail.com"
     asunto = f"Simón — Consulta de {nombre_empleado} ({cargo})"
-    cuerpo = f"""Hola,
-
-El siguiente colaborador tiene una consulta que requiere tu atención:
-
-Nombre: {nombre_empleado}
-Cargo: {cargo}
-Mensaje: {mensaje_original}
-
-Por favor responde directamente al colaborador.
-
-Este mensaje fue generado automáticamente por Simón.
-"""
+    cuerpo_html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background-color: #2C3E50; padding: 20px; border-radius: 8px 8px 0 0;">
+            <h2 style="color: white; margin: 0;">Simón — Nueva Consulta</h2>
+            <p style="color: #BDC3C7; margin: 5px 0 0 0;">Grupo Baco</p>
+        </div>
+        <div style="background-color: #F8F9FA; padding: 25px; border-radius: 0 0 8px 8px; border: 1px solid #E0E0E0;">
+            <p style="color: #555;">Hola, tienes una nueva consulta que requiere tu atención:</p>
+            <table style="width: 100%; border-collapse: collapse; margin: 20px 0;">
+                <tr style="background-color: #EAF2FF;">
+                    <td style="padding: 10px; font-weight: bold; color: #2C3E50; width: 30%;">Colaborador</td>
+                    <td style="padding: 10px; color: #555;">{nombre_empleado}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Cargo</td>
+                    <td style="padding: 10px; color: #555;">{cargo}</td>
+                </tr>
+                <tr style="background-color: #EAF2FF;">
+                    <td style="padding: 10px; font-weight: bold; color: #2C3E50;">Consulta</td>
+                    <td style="padding: 10px; color: #555;">{mensaje_original}</td>
+                </tr>
+            </table>
+            <p style="color: #888; font-size: 12px; margin-top: 30px; border-top: 1px solid #E0E0E0; padding-top: 15px;">
+                Este mensaje fue generado automáticamente por Simón · Grupo Baco
+            </p>
+        </div>
+    </div>
+    """
     mensaje = Mail(
         from_email=remitente,
         to_emails=destinatario,
         subject=asunto,
-        plain_text_content=cuerpo
+        html_content=cuerpo_html
     )
     if copia:
         mensaje.add_cc(copia)
