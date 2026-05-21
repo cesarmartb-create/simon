@@ -5,8 +5,9 @@ import anthropic
 from flask import Flask, request
 from dotenv import load_dotenv
 import requests
+from sendgrid import SendGridAPIClient
+from sendgrid.mail import Mail
 
-# Carga las variables del archivo .env
 load_dotenv()
 
 # ==========================================
@@ -16,10 +17,10 @@ ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
+SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
 
 # ==========================================
 # CARGA DE CLIENTES
-# Lee todos los archivos config_*.json
 # ==========================================
 def cargar_clientes():
     clientes = {}
@@ -53,6 +54,57 @@ def obtener_empleado(whitelist, numero):
     return whitelist.get(numero, None)
 
 # ==========================================
+# FUNCIÓN DE CORREO
+# ==========================================
+def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original):
+    remitente = "cesarmartb@gmail.com"
+    asunto = f"Simón — Consulta de {nombre_empleado} ({cargo})"
+    cuerpo = f"""Hola,
+
+El siguiente colaborador tiene una consulta que requiere tu atención:
+
+Nombre: {nombre_empleado}
+Cargo: {cargo}
+Mensaje: {mensaje_original}
+
+Por favor responde directamente al colaborador.
+
+Este mensaje fue generado automáticamente por Simón.
+"""
+    mensaje = Mail(
+        from_email=remitente,
+        to_emails=destinatario,
+        subject=asunto,
+        plain_text_content=cuerpo
+    )
+    if copia:
+        mensaje.add_cc(copia)
+    try:
+        sg = SendGridAPIClient(SENDGRID_API_KEY)
+        sg.send(mensaje)
+        print(f"Correo enviado a {destinatario}")
+    except Exception as e:
+        print(f"Error enviando correo: {e}")
+
+# ==========================================
+# FUNCIONES DE WHATSAPP
+# ==========================================
+def enviar_mensaje(numero, mensaje):
+    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero,
+        "type": "text",
+        "text": {"body": mensaje}
+    }
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()
+
+# ==========================================
 # FUNCIÓN PRINCIPAL: PROCESAR MENSAJE
 # ==========================================
 def procesar_mensaje(numero, mensaje_usuario):
@@ -75,9 +127,7 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     system_prompt_personalizado = (
         config["system_prompt"] +
-        f"
-
-El colaborador que escribe se llama {nombre} y su cargo es {cargo}. "
+        f"\n\nEl colaborador que escribe se llama {nombre} y su cargo es {cargo}. "
         f"Salúdalo por su nombre. "
         f"Si su consulta requiere derivación, el responsable será notificado por correo."
     )
@@ -95,6 +145,9 @@ El colaborador que escribe se llama {nombre} y su cargo es {cargo}. "
 
     texto_respuesta = respuesta.content[0].text
     enviar_mensaje(numero, texto_respuesta)
+
+    if notificar_a:
+        enviar_correo(notificar_a, copia_a, nombre, cargo, mensaje_usuario)
 
 # ==========================================
 # SERVIDOR WEBHOOK
