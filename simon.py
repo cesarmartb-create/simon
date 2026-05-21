@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from datetime import datetime, timedelta
 import requests
 from sendgrid.helpers.mail import Mail
+from upstash_redis import Redis
 
 load_dotenv()
 
@@ -19,6 +20,13 @@ WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
 WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
 WHATSAPP_VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN")
 SENDGRID_API_KEY = os.getenv("SENDGRID_API_KEY")
+UPSTASH_REDIS_REST_URL = os.getenv("UPSTASH_REDIS_REST_URL")
+UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
+
+# ==========================================
+# CONEXIÓN A REDIS
+# ==========================================
+redis = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
 
 # ==========================================
 # CARGA DE CLIENTES
@@ -55,48 +63,37 @@ def obtener_empleado(whitelist, numero):
     return whitelist.get(numero, None)
 
 # ==========================================
-# MEMORIA DE CONVERSACIÓN
+# MEMORIA DE CONVERSACIÓN EN REDIS
 # ==========================================
-ARCHIVO_CONVERSACIONES = "conversaciones_grupobaco.json"
 HORAS_EXPIRACION = 24
 
-def cargar_conversaciones():
-    try:
-        with open(ARCHIVO_CONVERSACIONES, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def guardar_conversaciones(conversaciones):
-    with open(ARCHIVO_CONVERSACIONES, "w") as f:
-        json.dump(conversaciones, f, ensure_ascii=False, indent=2)
-
 def obtener_sesion(numero):
-    conversaciones = cargar_conversaciones()
-    sesion = conversaciones.get(numero)
-    if not sesion:
+    try:
+        data = redis.get(f"sesion:{numero}")
+        if not data:
+            return None
+        return json.loads(data)
+    except:
         return None
-    ultima = datetime.fromisoformat(sesion["ultima_actividad"])
-    if datetime.now() - ultima > timedelta(hours=HORAS_EXPIRACION):
-        return None
-    return sesion
 
 def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a=""):
-    conversaciones = cargar_conversaciones()
-    conversaciones[numero] = {
-        "historial": historial,
-        "pendiente_correo": pendiente_correo,
-        "notificar_a": notificar_a,
-        "copia_a": copia_a,
-        "ultima_actividad": datetime.now().isoformat()
-    }
-    guardar_conversaciones(conversaciones)
+    try:
+        sesion = {
+            "historial": historial,
+            "pendiente_correo": pendiente_correo,
+            "notificar_a": notificar_a,
+            "copia_a": copia_a,
+            "ultima_actividad": datetime.now().isoformat()
+        }
+        redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=HORAS_EXPIRACION * 3600)
+    except Exception as e:
+        print(f"Error guardando sesion en Redis: {e}")
 
 def cerrar_sesion(numero):
-    conversaciones = cargar_conversaciones()
-    if numero in conversaciones:
-        del conversaciones[numero]
-        guardar_conversaciones(conversaciones)
+    try:
+        redis.delete(f"sesion:{numero}")
+    except Exception as e:
+        print(f"Error cerrando sesion en Redis: {e}")
 
 # ==========================================
 # FUNCIÓN DE CORREO
