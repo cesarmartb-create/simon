@@ -241,6 +241,17 @@ def es_sin_respuesta(texto):
               "no me escribieron", "no me contactaron", "siguen sin responderme"]
     return any(f in texto for f in frases)
 
+def calcular_dias_habiles(fecha_inicio_str):
+    fecha_inicio = datetime.fromisoformat(fecha_inicio_str)
+    fecha_actual = datetime.now()
+    dias = 0
+    fecha = fecha_inicio
+    while fecha < fecha_actual:
+        fecha += timedelta(days=1)
+        if es_dia_habil(fecha):
+            dias += 1
+    return dias
+
 # ==========================================
 # FUNCIÓN PRINCIPAL: PROCESAR MENSAJE
 # ==========================================
@@ -287,6 +298,12 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     # Caso 2: caso ya derivado y empleado reporta sin respuesta
     if sesion and sesion.get("caso_derivado") and es_sin_respuesta(mensaje_usuario):
+        fecha_derivacion = sesion.get("fecha_derivacion", "")
+        dias_habiles = calcular_dias_habiles(fecha_derivacion) if fecha_derivacion else 0
+
+        if dias_habiles < 1:
+            enviar_mensaje(numero, f"Entiendo tu inquietud {nombre}, pero el plazo para que te contacten aún no ha vencido. Si mañana sigues sin respuesta, escríbeme y escalo tu caso de inmediato.")
+            return
         nivel = sesion.get("escalamiento_nivel", 0) + 1
         mensaje_caso = sesion.get("mensaje_caso", "consulta anterior")
 
