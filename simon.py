@@ -6,6 +6,9 @@ import sendgrid
 from flask import Flask, request
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+TZ_CHILE = ZoneInfo("America/Santiago")
 import requests
 from sendgrid.helpers.mail import Mail
 from upstash_redis import Redis
