@@ -245,8 +245,10 @@ def es_sin_respuesta(texto):
     return any(f in texto for f in frases)
 
 def calcular_dias_habiles(fecha_inicio_str):
-    fecha_inicio = datetime.fromisoformat(fecha_inicio_str)
-    fecha_actual = datetime.now()
+    fecha_inicio = datetime.fromisoformat(fecha_inicio_str.replace("Z", ""))
+    if fecha_inicio.tzinfo is None:
+        fecha_inicio = fecha_inicio.replace(tzinfo=TZ_CHILE)
+    fecha_actual = datetime.now(tz=TZ_CHILE)
     dias = 0
     fecha = fecha_inicio
     while fecha < fecha_actual:
