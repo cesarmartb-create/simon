@@ -300,6 +300,9 @@ def procesar_mensaje(numero, mensaje_usuario):
     if sesion and sesion.get("caso_derivado") and es_sin_respuesta(mensaje_usuario):
         fecha_derivacion = sesion.get("fecha_derivacion", "")
         dias_habiles = calcular_dias_habiles(fecha_derivacion) if fecha_derivacion else 0
+        nivel_actual = sesion.get("escalamiento_nivel", 0)
+
+        print(f"Dias habiles transcurridos: {dias_habiles}, nivel actual: {nivel_actual}")
 
         if dias_habiles < 1:
             enviar_mensaje(numero, f"Entiendo tu inquietud {nombre}, pero el plazo para que te contacten aún no ha vencido. Si mañana sigues sin respuesta, escríbeme y escalo tu caso de inmediato.")
