@@ -288,7 +288,7 @@ def procesar_mensaje(numero, mensaje_usuario):
                 notificar_a=notificar_a,
                 copia_a=copia_a,
                 caso_derivado=True,
-                fecha_derivacion=datetime.now().isoformat(),
+                fecha_derivacion=datetime.now(tz=TZ_CHILE).isoformat(),
                 escalamiento_nivel=0,
                 mensaje_caso=primer_mensaje
             )
