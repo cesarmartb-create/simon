@@ -250,11 +250,12 @@ def calcular_dias_habiles(fecha_inicio_str):
         fecha_inicio = fecha_inicio.replace(tzinfo=TZ_CHILE)
     fecha_actual = datetime.now(tz=TZ_CHILE)
     dias = 0
-    fecha = fecha_inicio
-    while fecha < fecha_actual:
-        fecha += timedelta(days=1)
+    fecha = fecha_inicio + timedelta(days=1)
+    fecha = fecha.replace(hour=0, minute=0, second=0, microsecond=0)
+    while fecha + timedelta(days=1) <= fecha_actual:
         if es_dia_habil(fecha):
             dias += 1
+        fecha += timedelta(days=1)
     return dias
 
 # ==========================================
