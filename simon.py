@@ -303,7 +303,20 @@ def procesar_mensaje(numero, mensaje_usuario):
     # Caso 1: esperando confirmación para derivar
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
-            primer_mensaje = sesion["historial"][0]["content"] if sesion["historial"] else mensaje_usuario
+            # Buscar la consulta real: el último mensaje del usuario ANTES de la confirmación
+            # Recorremos el historial al revés saltándonos el último (que es la confirmación)
+            primer_mensaje = mensaje_usuario
+            historial_usr = [m for m in sesion["historial"] if m.get("role") == "user"]
+            if len(historial_usr) >= 2:
+                # El penúltimo mensaje del usuario es la consulta real
+                primer_mensaje = historial_usr[-2]["content"]
+                # Si ese mensaje también es muy corto (tipo "si", "ok"), buscar más atrás
+                for msg in reversed(historial_usr[:-1]):
+                    if len(msg["content"]) > 10:
+                        primer_mensaje = msg["content"]
+                        break
+            elif len(historial_usr) == 1:
+                primer_mensaje = historial_usr[0]["content"]
             enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
             # Mantener historial para que Claude recuerde el contexto (nombre, local)
             historial_actual = sesion.get("historial", [])
