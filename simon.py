@@ -390,6 +390,12 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     # Caso 3: conversación normal
     historial = sesion["historial"] if sesion else []
+
+    # Si no hay sesión y el mensaje es una confirmación suelta corta → ignorar
+    if not sesion and es_confirmacion(mensaje_usuario) and len(mensaje_usuario.strip()) <= 5:
+        print(f"Confirmación suelta ignorada de {numero}: {mensaje_usuario}")
+        return
+
     historial.append({"role": "user", "content": mensaje_usuario})
 
     system_prompt_personalizado = (
@@ -453,6 +459,10 @@ def recibir_mensaje():
                 interactive = mensaje.get("interactive", {})
                 if interactive.get("type") == "button_reply":
                     texto = interactive["button_reply"]["title"]
+                    # Ignorar botones tardíos si no hay sesión activa
+                    if not obtener_sesion(numero):
+                        print(f"Botón tardío ignorado de {numero}: {texto}")
+                        return "OK", 200
                 else:
                     texto = mensaje.get("text", {}).get("body", "")
             else:
