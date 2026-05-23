@@ -124,7 +124,7 @@ def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", co
             "escalamiento_nivel": escalamiento_nivel,
             "mensaje_caso": mensaje_caso,
             "caso_sensible": caso_sensible,
-            "ultima_actividad": datetime.now().isoformat()
+            "ultima_actividad": datetime.now(tz=TZ_CHILE).isoformat()
         }
         redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=DIAS_EXPIRACION * 24 * 3600)
     except Exception as e:
