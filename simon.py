@@ -238,7 +238,7 @@ def enviar_botones_si_no(numero, mensaje):
         "type": "interactive",
         "interactive": {
             "type": "button",
-            "body": {"text": mensaje},
+            "body": {"text": mensaje[:1024]},
             "action": {
                 "buttons": [
                     {"type": "reply", "reply": {"id": "btn_si", "title": "Sí"}},
@@ -247,8 +247,19 @@ def enviar_botones_si_no(numero, mensaje):
             }
         }
     }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
+    try:
+        response = requests.post(url, headers=headers, json=data)
+        resultado = response.json()
+        print(f"Respuesta botones: {resultado}")
+        # Si falla, mandar como texto normal
+        if "error" in resultado:
+            print(f"Error enviando botones, enviando como texto: {resultado.get('error')}")
+            enviar_mensaje(numero, mensaje)
+        return resultado
+    except Exception as e:
+        print(f"Excepción enviando botones: {e}")
+        enviar_mensaje(numero, mensaje)
+        return None
 
 # ==========================================
 # DETECTAR INTENCIONES
