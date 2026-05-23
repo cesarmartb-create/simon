@@ -430,7 +430,21 @@ def procesar_mensaje(numero, mensaje_usuario):
     sensible_detectado = any(p in texto_respuesta.lower() for p in ["ley karin", "qr", "denuncia@grupobaco", "confidencial", "hostigamiento", "acoso"])
 
     # Guardar mensaje original solo cuando se detecta derivación nueva
-    mensaje_caso_a_guardar = mensaje_usuario if derivacion_detectada else (sesion.get("mensaje_caso", "") if sesion else "")
+    # Construir consulta completa: todos los mensajes del usuario excepto identificación del local
+    if derivacion_detectada:
+        msgs_usuario = [m["content"] for m in historial if m.get("role") == "user"]
+        # Excluir mensajes de identificación de local (números del 1 al 13)
+        msgs_filtrados = [m for m in msgs_usuario if not (m.strip().isdigit() and 1 <= int(m.strip()) <= 13)]
+        # Excluir saludos cortos y confirmaciones
+        msgs_filtrados = [m for m in msgs_filtrados if m.strip().lower() not in ["hola", "buenas", "buenos días", "buenas tardes", "buenas noches", "si", "sí", "ok", "no"]]
+        if len(msgs_filtrados) > 1:
+            mensaje_caso_a_guardar = "\n• " + "\n• ".join(msgs_filtrados)
+        elif len(msgs_filtrados) == 1:
+            mensaje_caso_a_guardar = msgs_filtrados[0]
+        else:
+            mensaje_caso_a_guardar = mensaje_usuario
+    else:
+        mensaje_caso_a_guardar = sesion.get("mensaje_caso", "") if sesion else ""
 
     guardar_sesion(
         numero,
