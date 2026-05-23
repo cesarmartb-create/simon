@@ -344,20 +344,8 @@ def procesar_mensaje(numero, mensaje_usuario):
     # Caso 1: esperando confirmación para derivar
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
-            # Buscar la consulta real: el último mensaje del usuario ANTES de la confirmación
-            # Recorremos el historial al revés saltándonos el último (que es la confirmación)
-            primer_mensaje = mensaje_usuario
-            historial_usr = [m for m in sesion["historial"] if m.get("role") == "user"]
-            if len(historial_usr) >= 2:
-                # El penúltimo mensaje del usuario es la consulta real
-                primer_mensaje = historial_usr[-2]["content"]
-                # Si ese mensaje también es muy corto (tipo "si", "ok"), buscar más atrás
-                for msg in reversed(historial_usr[:-1]):
-                    if len(msg["content"]) > 10:
-                        primer_mensaje = msg["content"]
-                        break
-            elif len(historial_usr) == 1:
-                primer_mensaje = historial_usr[0]["content"]
+            # Usar el mensaje_caso guardado cuando se detectó la derivación
+            primer_mensaje = sesion.get("mensaje_caso", "") or mensaje_usuario
             enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
             # Mantener historial para que Claude recuerde el contexto (nombre, local)
             historial_actual = sesion.get("historial", [])
@@ -441,13 +429,17 @@ def procesar_mensaje(numero, mensaje_usuario):
     derivacion_detectada = any(p in texto_respuesta.lower() for p in ["maría andrea", "kathy", "nayarhet", "derivar", "derivarte", "notificar"])
     sensible_detectado = any(p in texto_respuesta.lower() for p in ["ley karin", "qr", "denuncia@grupobaco", "confidencial", "hostigamiento", "acoso"])
 
+    # Guardar mensaje original solo cuando se detecta derivación nueva
+    mensaje_caso_a_guardar = mensaje_usuario if derivacion_detectada else (sesion.get("mensaje_caso", "") if sesion else "")
+
     guardar_sesion(
         numero,
         historial,
         pendiente_correo=derivacion_detectada,
         notificar_a=notificar_a,
         copia_a=copia_a,
-        caso_sensible=sensible_detectado
+        caso_sensible=sensible_detectado,
+        mensaje_caso=mensaje_caso_a_guardar
     )
 
     if derivacion_detectada:
