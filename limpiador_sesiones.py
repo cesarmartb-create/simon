@@ -26,7 +26,7 @@ UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
 
 redis = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
 
-MINUTOS_TIMEOUT = 3
+MINUTOS_TIMEOUT = 1
 
 
 def cargar_whitelist_global():
