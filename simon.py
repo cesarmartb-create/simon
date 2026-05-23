@@ -112,7 +112,7 @@ def obtener_sesion(numero):
     except:
         return None
 
-def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a="", caso_derivado=False, fecha_derivacion="", escalamiento_nivel=0, mensaje_caso=""):
+def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a="", caso_derivado=False, fecha_derivacion="", escalamiento_nivel=0, mensaje_caso="", caso_sensible=False):
     try:
         sesion = {
             "historial": historial,
@@ -123,6 +123,7 @@ def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", co
             "fecha_derivacion": fecha_derivacion,
             "escalamiento_nivel": escalamiento_nivel,
             "mensaje_caso": mensaje_caso,
+            "caso_sensible": caso_sensible,
             "ultima_actividad": datetime.now().isoformat()
         }
         redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=DIAS_EXPIRACION * 24 * 3600)
@@ -359,13 +360,15 @@ def procesar_mensaje(numero, mensaje_usuario):
     historial.append({"role": "assistant", "content": texto_respuesta})
 
     derivacion_detectada = any(p in texto_respuesta.lower() for p in ["maría andrea", "kathy", "nayarhet", "derivar", "derivarte", "notificar"])
+    sensible_detectado = any(p in texto_respuesta.lower() for p in ["ley karin", "qr", "denuncia@grupobaco", "confidencial", "hostigamiento", "acoso"])
 
     guardar_sesion(
         numero,
         historial,
         pendiente_correo=derivacion_detectada,
         notificar_a=notificar_a,
-        copia_a=copia_a
+        copia_a=copia_a,
+        caso_sensible=sensible_detectado
     )
 
     enviar_mensaje(numero, texto_respuesta)
