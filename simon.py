@@ -112,7 +112,7 @@ def obtener_sesion(numero):
     except:
         return None
 
-def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a="", caso_derivado=False, fecha_derivacion="", escalamiento_nivel=0, mensaje_caso="", caso_sensible=False):
+def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", copia_a="", caso_derivado=False, fecha_derivacion="", escalamiento_nivel=0, mensaje_caso="", caso_sensible=False, esperando_continuacion=False):
     try:
         sesion = {
             "historial": historial,
@@ -124,6 +124,7 @@ def guardar_sesion(numero, historial, pendiente_correo=False, notificar_a="", co
             "escalamiento_nivel": escalamiento_nivel,
             "mensaje_caso": mensaje_caso,
             "caso_sensible": caso_sensible,
+            "esperando_continuacion": esperando_continuacion,
             "ultima_actividad": datetime.now(tz=TZ_CHILE).isoformat()
         }
         redis.set(f"sesion:{numero}", json.dumps(sesion, ensure_ascii=False), ex=DIAS_EXPIRACION * 24 * 3600)
@@ -320,6 +321,26 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     sesion = obtener_sesion(numero)
 
+    # Caso 0: esperando respuesta a "¿Necesitas ayuda con algo más?"
+    if sesion and sesion.get("esperando_continuacion"):
+        if es_rechazo(mensaje_usuario):
+            cerrar_sesion(numero)
+            enviar_mensaje(numero, f"Perfecto {nombre}, quedo atento. ¡Hasta pronto! 👋")
+            return
+        # "Sí" o cualquier otra cosa → limpiar caso anterior y continuar conversación
+        guardar_sesion(
+            numero,
+            historial=sesion.get("historial", []),
+            notificar_a=notificar_a,
+            copia_a=copia_a,
+            esperando_continuacion=False
+        )
+        if es_confirmacion(mensaje_usuario):
+            enviar_mensaje(numero, f"Cuéntame {nombre}, ¿en qué más puedo ayudarte?")
+            return
+        # Si escribió directamente una consulta nueva (no "sí" ni "no"), procesarla
+        sesion = obtener_sesion(numero)
+
     # Caso 1: esperando confirmación para derivar
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
@@ -349,7 +370,8 @@ def procesar_mensaje(numero, mensaje_usuario):
                 caso_derivado=True,
                 fecha_derivacion=datetime.now(tz=TZ_CHILE).isoformat(),
                 escalamiento_nivel=0,
-                mensaje_caso=primer_mensaje
+                mensaje_caso=primer_mensaje,
+                esperando_continuacion=True
             )
             if sesion.get("caso_sensible", False):
                 enviar_botones_si_no(numero, f"Cuídate mucho {nombre}. Hiciste lo correcto al comunicarlo 🙏\n\n¿Necesitas ayuda con algo más?")
