@@ -463,6 +463,25 @@ def recibir_mensaje():
     return "OK", 200
 
 # ==========================================
+# ENDPOINT DE LIMPIEZA AUTOMÁTICA
+# ==========================================
+LIMPIADOR_SECRET = os.getenv("LIMPIADOR_SECRET")
+
+@app.route("/limpiar-sesiones", methods=["POST"])
+def limpiar_sesiones_endpoint():
+    secret_recibido = request.headers.get("X-Secret", "")
+    if secret_recibido != LIMPIADOR_SECRET:
+        return "Unauthorized", 401
+
+    try:
+        from limpiador_sesiones import limpiar_sesiones
+        limpiar_sesiones()
+        return {"status": "ok"}, 200
+    except Exception as e:
+        print(f"Error en limpieza: {e}")
+        return {"status": "error", "message": str(e)}, 500
+
+# ==========================================
 # INICIO DEL SERVIDOR
 # ==========================================
 if __name__ == "__main__":
