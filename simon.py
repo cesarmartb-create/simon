@@ -321,7 +321,8 @@ def procesar_mensaje(numero, mensaje_usuario):
     sesion = obtener_sesion(numero)
 
     # Verificar si pasaron más de 3 minutos de inactividad
-    if sesion and sesion.get("ultima_actividad"):
+    # Solo aplica si había una conversación activa con derivación previa
+    if sesion and sesion.get("ultima_actividad") and sesion.get("caso_derivado"):
         try:
             ultima = datetime.fromisoformat(sesion["ultima_actividad"])
             if ultima.tzinfo is None:
@@ -329,8 +330,8 @@ def procesar_mensaje(numero, mensaje_usuario):
             ahora = datetime.now(tz=TZ_CHILE)
             minutos_transcurridos = (ahora - ultima).total_seconds() / 60
             if minutos_transcurridos > 3:
-                # Sesión expirada: enviar despedida y empezar conversación nueva
-                enviar_mensaje(numero, f"Veo que ya no tienes más consultas {nombre}. Cualquier cosa me escribes. ¡Hasta pronto! 👋")
+                # Sesión expirada: cerrar silenciosamente y empezar conversación nueva
+                # NO enviamos mensaje de despedida automático para evitar confusión
                 cerrar_sesion(numero)
                 sesion = None
         except Exception as e:
