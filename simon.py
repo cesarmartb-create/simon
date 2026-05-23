@@ -428,7 +428,10 @@ def procesar_mensaje(numero, mensaje_usuario):
         caso_sensible=sensible_detectado
     )
 
-    enviar_mensaje(numero, texto_respuesta)
+    if derivacion_detectada:
+        enviar_botones_si_no(numero, texto_respuesta)
+    else:
+        enviar_mensaje(numero, texto_respuesta)
 
 # ==========================================
 # SERVIDOR WEBHOOK
