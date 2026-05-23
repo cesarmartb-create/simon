@@ -299,7 +299,10 @@ def procesar_mensaje(numero, mensaje_usuario):
                 escalamiento_nivel=0,
                 mensaje_caso=primer_mensaje
             )
-            enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te debiera contactar pronto. 👍\n\n¿Necesitas ayuda con algo más?")
+            if sesion.get("caso_sensible", False):
+                enviar_mensaje(numero, f"Cuídate mucho {nombre}. Hiciste lo correcto al comunicarlo 🙏\n\n¿Necesitas ayuda con algo más?")
+            else:
+                enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te debiera contactar pronto. 👍\n\n¿Necesitas ayuda con algo más?")
             return
         elif es_rechazo(mensaje_usuario):
             cerrar_sesion(numero)
