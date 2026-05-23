@@ -284,14 +284,32 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     sesion = obtener_sesion(numero)
 
+    # Verificar si pasaron más de 3 minutos de inactividad
+    if sesion and sesion.get("ultima_actividad"):
+        try:
+            ultima = datetime.fromisoformat(sesion["ultima_actividad"])
+            if ultima.tzinfo is None:
+                ultima = ultima.replace(tzinfo=TZ_CHILE)
+            ahora = datetime.now(tz=TZ_CHILE)
+            minutos_transcurridos = (ahora - ultima).total_seconds() / 60
+            if minutos_transcurridos > 3:
+                # Sesión expirada: enviar despedida y empezar conversación nueva
+                enviar_mensaje(numero, f"Veo que ya no tienes más consultas {nombre}. Cualquier cosa me escribes. ¡Hasta pronto! 👋")
+                cerrar_sesion(numero)
+                sesion = None
+        except Exception as e:
+            print(f"Error verificando timeout: {e}")
+
     # Caso 1: esperando confirmación para derivar
     if sesion and sesion.get("pendiente_correo"):
         if es_confirmacion(mensaje_usuario):
             primer_mensaje = sesion["historial"][0]["content"] if sesion["historial"] else mensaje_usuario
             enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
+            # Mantener historial para que Claude recuerde el contexto (nombre, local)
+            historial_actual = sesion.get("historial", [])
             guardar_sesion(
                 numero,
-                historial=[],
+                historial=historial_actual,
                 pendiente_correo=False,
                 notificar_a=notificar_a,
                 copia_a=copia_a,
