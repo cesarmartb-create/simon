@@ -225,6 +225,31 @@ def enviar_mensaje(numero, mensaje):
     response = requests.post(url, headers=headers, json=data)
     return response.json()
 
+def enviar_botones_si_no(numero, mensaje):
+    """Envía un mensaje con botones Sí/No al estilo Abastible"""
+    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
+    headers = {
+        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
+        "Content-Type": "application/json"
+    }
+    data = {
+        "messaging_product": "whatsapp",
+        "to": numero,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": mensaje},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": "btn_si", "title": "Sí"}},
+                    {"type": "reply", "reply": {"id": "btn_no", "title": "No"}}
+                ]
+            }
+        }
+    }
+    response = requests.post(url, headers=headers, json=data)
+    return response.json()
+
 # ==========================================
 # DETECTAR INTENCIONES
 # ==========================================
@@ -332,9 +357,9 @@ def procesar_mensaje(numero, mensaje_usuario):
                 mensaje_caso=primer_mensaje
             )
             if sesion.get("caso_sensible", False):
-                enviar_mensaje(numero, f"Cuídate mucho {nombre}. Hiciste lo correcto al comunicarlo 🙏\n\n¿Necesitas ayuda con algo más?")
+                enviar_botones_si_no(numero, f"Cuídate mucho {nombre}. Hiciste lo correcto al comunicarlo 🙏\n\n¿Necesitas ayuda con algo más?")
             else:
-                enviar_mensaje(numero, f"Listo {nombre}, ya notifiqué al encargado. Te debiera contactar pronto. 👍\n\n¿Necesitas ayuda con algo más?")
+                enviar_botones_si_no(numero, f"Listo {nombre}, ya notifiqué al encargado. Te debiera contactar pronto. 👍\n\n¿Necesitas ayuda con algo más?")
             return
         elif es_rechazo(mensaje_usuario):
             cerrar_sesion(numero)
@@ -428,7 +453,15 @@ def recibir_mensaje():
         if "messages" in valor:
             mensaje = valor["messages"][0]
             numero = mensaje["from"]
-            texto = mensaje["text"]["body"]
+            # Detectar si es un texto normal o una respuesta de botón
+            if mensaje.get("type") == "interactive":
+                interactive = mensaje.get("interactive", {})
+                if interactive.get("type") == "button_reply":
+                    texto = interactive["button_reply"]["title"]
+                else:
+                    texto = mensaje.get("text", {}).get("body", "")
+            else:
+                texto = mensaje["text"]["body"]
             procesar_mensaje(numero, texto)
     except Exception as e:
         print(f"Error procesando mensaje: {e}")
