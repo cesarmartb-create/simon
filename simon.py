@@ -12,6 +12,7 @@ TZ_CHILE = ZoneInfo("America/Santiago")
 import requests
 from sendgrid.helpers.mail import Mail
 from upstash_redis import Redis
+from supabase import create_client, Client
 
 load_dotenv()
 
@@ -142,6 +143,89 @@ def cerrar_sesion(numero):
 # ==========================================
 def formatear_cargo(cargo):
     return cargo.replace("_", " ").title()
+
+# ==========================================
+# SUPABASE - Registro de casos
+# ==========================================
+SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+
+supabase_client: Client = None
+if SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print("✅ Conectado a Supabase")
+    except Exception as e:
+        print(f"⚠️  Error conectando a Supabase: {e}")
+        supabase_client = None
+else:
+    print("⚠️  SUPABASE_URL o SUPABASE_KEY no configuradas")
+
+# ==========================================
+# DETECCIÓN DE LOCAL DESDE HISTORIAL
+# ==========================================
+LOCALES_GRUPOBACO = {
+    1:  "F0006 — Maipú 1",
+    2:  "F0024 — Chillán 1",
+    3:  "F0090 — Castro 1",
+    4:  "F0160 — Talagante",
+    5:  "F0171 — Pedro Aguirre Cerda",
+    6:  "F0234 — Franklin",
+    7:  "F0287 — Chillán 3",
+    8:  "F0313 — Maipú 3",
+    9:  "F0383 — Rancagua 8",
+    10: "F0437 — Talagante 2",
+    11: "F0521 — Maipú Chacabuco",
+    12: "F0544 — Chillán 6",
+    13: "F0578 — Castro 2"
+}
+
+def detectar_local(historial):
+    """Busca el primer mensaje del usuario que sea un número 1-13 y devuelve el local."""
+    if not historial:
+        return ""
+    for msg in historial:
+        if msg.get("role") != "user":
+            continue
+        texto = msg.get("content", "").strip()
+        if texto.isdigit():
+            numero = int(texto)
+            if 1 <= numero <= 13:
+                return LOCALES_GRUPOBACO[numero]
+    return ""
+
+def registrar_caso(cliente_id, nombre, numero, cargo, local, consulta, categoria, responsable):
+    """Registra un caso nuevo en Supabase. No bloquea si falla."""
+    if not supabase_client:
+        print("Supabase no disponible, caso no registrado")
+        return None
+    try:
+        data = {
+            "cliente_id": cliente_id,
+            "colaborador_nombre": nombre,
+            "colaborador_numero": numero,
+            "colaborador_cargo": cargo,
+            "local": local,
+            "consulta": consulta,
+            "categoria": categoria,
+            "responsable": responsable,
+            "estado": "abierto"
+        }
+        result = supabase_client.table("casos").insert(data).execute()
+        caso_id = result.data[0]["id"] if result.data else None
+        print(f"✅ Caso registrado en Supabase: {caso_id}")
+        # Registrar evento de creación
+        if caso_id:
+            supabase_client.table("eventos").insert({
+                "caso_id": caso_id,
+                "tipo": "creado",
+                "detalle": f"Caso derivado a {responsable}",
+                "actor": "simon"
+            }).execute()
+        return caso_id
+    except Exception as e:
+        print(f"⚠️  Error registrando caso en Supabase: {e}")
+        return None
 
 def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original, numero_empleado="", asunto_extra="", nivel_escalamiento=0):
     cargo_fmt = formatear_cargo(cargo)
@@ -347,6 +431,18 @@ def procesar_mensaje(numero, mensaje_usuario):
             # Usar el mensaje_caso guardado cuando se detectó la derivación
             primer_mensaje = sesion.get("mensaje_caso", "") or mensaje_usuario
             enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
+            # Registrar caso en Supabase (no bloqueante)
+            categoria_caso = "sensible" if sesion.get("caso_sensible") else "operacional"
+            registrar_caso(
+                cliente_id=config.get("cliente_id", "grupobaco"),
+                nombre=nombre,
+                numero=numero,
+                cargo=cargo,
+                local=detectar_local(sesion.get("historial", [])),
+                consulta=primer_mensaje,
+                categoria=categoria_caso,
+                responsable=notificar_a
+            )
             # Mantener historial para que Claude recuerde el contexto (nombre, local)
             historial_actual = sesion.get("historial", [])
             guardar_sesion(
