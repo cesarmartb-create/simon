@@ -6,25 +6,13 @@ Revisa todas las sesiones activas y:
 - Si pasaron más de 3 minutos sin actividad sin pendientes → solo cierra sesión
 """
 
-import os
 import json
-import glob
-import requests
 from datetime import datetime
-from zoneinfo import ZoneInfo
-from dotenv import load_dotenv
-from upstash_redis import Redis
 
-load_dotenv()
-
-TZ_CHILE = ZoneInfo("America/Santiago")
-
-WHATSAPP_TOKEN = os.getenv("WHATSAPP_TOKEN")
-WHATSAPP_PHONE_ID = os.getenv("WHATSAPP_PHONE_ID")
-UPSTASH_REDIS_REST_URL = os.getenv("UPSTASH_REDIS_REST_URL")
-UPSTASH_REDIS_REST_TOKEN = os.getenv("UPSTASH_REDIS_REST_TOKEN")
-
-redis = Redis(url=UPSTASH_REDIS_REST_URL, token=UPSTASH_REDIS_REST_TOKEN)
+from sesion import redis
+from feriados import TZ_CHILE
+from whatsapp import enviar_mensaje
+from config import cargar_clientes, cargar_whitelist
 
 MINUTOS_TIMEOUT = 1
 
@@ -32,34 +20,13 @@ MINUTOS_TIMEOUT = 1
 def cargar_whitelist_global():
     """Carga las whitelists de todos los clientes activos."""
     whitelist = {}
-    for archivo in glob.glob("config_*.json"):
-        with open(archivo, "r") as f:
-            config = json.load(f)
-            if config.get("activo"):
-                try:
-                    with open(config["archivo_whitelist"], "r") as wf:
-                        data = json.load(wf)
-                        for emp in data.get("empleados", []):
-                            whitelist[emp["numero"]] = emp
-                except Exception as e:
-                    print(f"Error cargando whitelist {config['archivo_whitelist']}: {e}")
+    for config in cargar_clientes().values():
+        if config.get("activo"):
+            try:
+                whitelist.update(cargar_whitelist(config["archivo_whitelist"]))
+            except Exception as e:
+                print(f"Error cargando whitelist {config['archivo_whitelist']}: {e}")
     return whitelist
-
-
-def enviar_mensaje(numero, mensaje):
-    url = f"https://graph.facebook.com/v19.0/{WHATSAPP_PHONE_ID}/messages"
-    headers = {
-        "Authorization": f"Bearer {WHATSAPP_TOKEN}",
-        "Content-Type": "application/json"
-    }
-    data = {
-        "messaging_product": "whatsapp",
-        "to": numero,
-        "type": "text",
-        "text": {"body": mensaje}
-    }
-    response = requests.post(url, headers=headers, json=data)
-    return response.json()
 
 
 def limpiar_sesiones():
