@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .DS_Store
 Contexto_Simon_Budo_AI.docx
+simon_before_refactor.py
