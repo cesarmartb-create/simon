@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from sesion import obtener_sesion
 from conversacion import procesar_mensaje
+from whatsapp import enviar_mensaje
 
 load_dotenv()
 
@@ -64,6 +65,35 @@ def limpiar_sesiones_endpoint():
         return {"status": "ok"}, 200
     except Exception as e:
         print(f"Error en limpieza: {e}")
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/notificar-colaborador", methods=["POST"])
+def notificar_colaborador_endpoint():
+    secret_recibido = request.headers.get("X-Secret", "")
+    if secret_recibido != LIMPIADOR_SECRET:
+        return "Unauthorized", 401
+
+    try:
+        data = request.json or {}
+        numero = data.get("numero", "")
+        nombre = data.get("nombre", "")
+        estado = data.get("estado", "")
+
+        mensajes = {
+            "en_gestion": f"Hola {nombre}, te informamos que tu consulta está siendo atendida. No es necesario que respondas este mensaje.",
+            "cerrado": f"Hola {nombre}, tu consulta ha sido resuelta. Si tienes una nueva consulta, puedes escribirme cuando quieras.",
+            "escalado": f"Hola {nombre}, tu consulta ha sido derivada a un nivel superior para asegurar que reciba la atención que corresponde. Te contactarán a la brevedad. No es necesario que respondas este mensaje.",
+        }
+
+        mensaje = mensajes.get(estado)
+        if not mensaje:
+            return {"status": "ok", "notificado": False}, 200
+
+        enviar_mensaje(numero, mensaje)
+        return {"status": "ok", "notificado": True}, 200
+    except Exception as e:
+        print(f"Error notificando colaborador: {e}")
         return {"status": "error", "message": str(e)}, 500
 
 
