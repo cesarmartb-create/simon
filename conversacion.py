@@ -10,7 +10,7 @@ from locales import detectar_local
 from whatsapp import enviar_mensaje, enviar_botones_si_no
 from correo import enviar_correo
 from casos import registrar_caso
-from intenciones import es_confirmacion, es_rechazo, es_sin_respuesta
+from intenciones import es_confirmacion, es_rechazo, es_sin_respuesta, es_emergencia
 
 load_dotenv()
 
@@ -154,10 +154,11 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     derivacion_detectada = any(p in texto_respuesta.lower() for p in ["maría andrea", "kathy", "nayarhet", "derivar", "derivarte", "notificar"])
     sensible_detectado = any(p in texto_respuesta.lower() for p in ["ley karin", "qr", "denuncia@grupobaco", "confidencial", "hostigamiento", "acoso"])
+    emergencia_detectada = es_emergencia(mensaje_usuario)
 
-    # Guardar mensaje original solo cuando se detecta derivación nueva
+    # Guardar mensaje original cuando se detecta derivación nueva o emergencia
     # Construir consulta completa: todos los mensajes del usuario excepto identificación del local
-    if derivacion_detectada:
+    if derivacion_detectada or emergencia_detectada:
         msgs_usuario = [m["content"] for m in historial if m.get("role") == "user"]
         # Excluir mensajes de identificación de local (números del 1 al 13)
         msgs_filtrados = [m for m in msgs_usuario if not (m.strip().isdigit() and 1 <= int(m.strip()) <= 13)]
@@ -171,6 +172,34 @@ def procesar_mensaje(numero, mensaje_usuario):
             mensaje_caso_a_guardar = mensaje_usuario
     else:
         mensaje_caso_a_guardar = sesion.get("mensaje_caso", "") if sesion else ""
+
+    # Emergencia: notificar a Nayarhet AHORA, sin pedir confirmación ni botones
+    if emergencia_detectada:
+        enviar_correo(notificar_a, copia_a, nombre, cargo, mensaje_caso_a_guardar, numero)
+        registrar_caso(
+            cliente_id=config.get("cliente_id", "grupobaco"),
+            nombre=nombre,
+            numero=numero,
+            cargo=cargo,
+            local=detectar_local(historial),
+            consulta=mensaje_caso_a_guardar,
+            categoria="accidente",
+            responsable=notificar_a
+        )
+        guardar_sesion(
+            numero,
+            historial,
+            pendiente_correo=False,
+            notificar_a=notificar_a,
+            copia_a=copia_a,
+            caso_derivado=True,
+            fecha_derivacion=datetime.now(tz=TZ_CHILE).isoformat(),
+            escalamiento_nivel=0,
+            mensaje_caso=mensaje_caso_a_guardar,
+            caso_sensible=sensible_detectado
+        )
+        enviar_mensaje(numero, texto_respuesta)
+        return
 
     guardar_sesion(
         numero,

@@ -20,3 +20,20 @@ def es_sin_respuesta(texto):
               "no he tenido respuesta", "todavía nada", "sin respuesta", "no me llamaron",
               "no me escribieron", "no me contactaron", "siguen sin responderme"]
     return any(f in texto for f in frases)
+
+
+def es_emergencia(texto):
+    texto = texto.lower().strip()
+    palabras = [
+        "accidente", "caída", "caida",
+        "me caí", "me cai",
+        "herida", "herido",
+        "golpe", "golpeé", "golpeo",
+        "lesión", "lesion", "lesionado",
+        "sangre", "sangrando",
+        "fractura", "fracturado",
+        "quemadura", "quemado",
+        "desmayo", "desmayado",
+        "emergencia",
+    ]
+    return any(p in texto for p in palabras)
