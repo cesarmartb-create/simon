@@ -5,11 +5,13 @@
   "encargados": {
     "operaciones": {
       "nombre": "María Andrea",
-      "numero": "56912345678"
+      "numero": "56912345678",
+      "email": ""
     },
     "cumplimiento": {
       "nombre": "Nayarhet",
-      "numero": "56912345680"
+      "numero": "56912345680",
+      "email": "cesar.martinez@grupobaco.cl"
     }
   },
   "archivo_whitelist": "whitelist_grupobaco.json",

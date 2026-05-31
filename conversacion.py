@@ -175,7 +175,9 @@ def procesar_mensaje(numero, mensaje_usuario):
 
     # Emergencia: notificar a Nayarhet AHORA, sin pedir confirmación ni botones
     if emergencia_detectada:
-        enviar_correo(notificar_a, copia_a, nombre, cargo, mensaje_caso_a_guardar, numero)
+        # TEMPORAL Fase 1: routing por categoria se migrara a Supabase.
+        correo_emergencia = config.get("encargados", {}).get("cumplimiento", {}).get("email", "") or notificar_a
+        enviar_correo(correo_emergencia, copia_a, nombre, cargo, mensaje_caso_a_guardar, numero)
         registrar_caso(
             cliente_id=config.get("cliente_id", "grupobaco"),
             nombre=nombre,
@@ -184,20 +186,9 @@ def procesar_mensaje(numero, mensaje_usuario):
             local=detectar_local(historial),
             consulta=mensaje_caso_a_guardar,
             categoria="accidente",
-            responsable=notificar_a
+            responsable=correo_emergencia
         )
-        guardar_sesion(
-            numero,
-            historial,
-            pendiente_correo=False,
-            notificar_a=notificar_a,
-            copia_a=copia_a,
-            caso_derivado=True,
-            fecha_derivacion=datetime.now(tz=TZ_CHILE).isoformat(),
-            escalamiento_nivel=0,
-            mensaje_caso=mensaje_caso_a_guardar,
-            caso_sensible=sensible_detectado
-        )
+        cerrar_sesion(numero)
         enviar_mensaje(numero, texto_respuesta)
         return
 
