@@ -245,10 +245,16 @@ def procesar_mensaje(numero, mensaje_usuario):
         enviar_mensaje(numero, texto_respuesta)
         return
 
+    # Solo activar el flujo de confirmación con botones cuando ya hay local detectado.
+    # Si "derivación" aparece durante PASO 1 (identificación), el colaborador todavía debe
+    # escribir el número del local — no tiene sentido pedirle un Sí/No.
+    tiene_local = bool(detectar_local(historial))
+    derivacion_efectiva = derivacion_detectada and tiene_local
+
     guardar_sesion(
         numero,
         historial,
-        pendiente_correo=derivacion_detectada,
+        pendiente_correo=derivacion_efectiva,
         notificar_a=notificar_a,
         copia_a=copia_a,
         caso_sensible=sensible_detectado,
@@ -256,7 +262,7 @@ def procesar_mensaje(numero, mensaje_usuario):
         categoria=categoria_detectada
     )
 
-    if derivacion_detectada:
+    if derivacion_efectiva:
         enviar_botones_si_no(numero, texto_respuesta)
     else:
         enviar_mensaje(numero, texto_respuesta)
