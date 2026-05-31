@@ -1,4 +1,5 @@
 import os
+import re
 import anthropic
 from datetime import datetime
 from dotenv import load_dotenv
@@ -149,7 +150,19 @@ def procesar_mensaje(numero, mensaje_usuario):
         messages=historial
     )
 
-    texto_respuesta = respuesta.content[0].text
+    texto_respuesta_raw = respuesta.content[0].text
+
+    # Extrae [[CATEGORIA: x]] y deja el texto visible sin la etiqueta. Por ahora solo se
+    # calcula categoria_detectada para logs; el routing por categoría se conecta en Pieza 3.
+    match_categoria = re.search(r"\[\[\s*CATEGORIA\s*:\s*([a-z_]+)\s*\]\]", texto_respuesta_raw, re.IGNORECASE)
+    categoria_detectada = match_categoria.group(1).lower() if match_categoria else None
+    # Reemplaza la etiqueta por un espacio (no por vacío) para no pegar palabras si quedó a
+    # mitad del texto. Luego colapsa solo whitespace horizontal (espacios y tabs), preservando
+    # los \n que Simón usa entre puntos del mensaje.
+    texto_respuesta = re.sub(r"\[\[\s*CATEGORIA\s*:\s*[a-z_]+\s*\]\]", " ", texto_respuesta_raw, flags=re.IGNORECASE)
+    texto_respuesta = re.sub(r"[ \t]+", " ", texto_respuesta).strip()
+    print(f"Categoria detectada: {categoria_detectada}")
+
     historial.append({"role": "assistant", "content": texto_respuesta})
 
     derivacion_detectada = any(p in texto_respuesta.lower() for p in ["maría andrea", "kathy", "nayarhet", "derivar", "derivarte", "notificar"])
