@@ -223,6 +223,28 @@ def procesar_mensaje(numero, mensaje_usuario):
         enviar_mensaje(numero, texto_respuesta)
         return
 
+    # Sensible: notificar internamente la existencia del caso (sin contenido) y cerrar la sesión.
+    # Si un mensaje dispara también emergencia, ese branch ya retornó arriba — emergencia gana.
+    # El canal oficial (QR Ley Karin / denuncia@grupobaco.cl) es el único registro válido del contenido.
+    if categoria_detectada == "sensible":
+        consulta_a_enviar = "Caso sensible reportado — contenido reservado por confidencialidad. Gestionar por el canal formal (Ley Karin / denuncia@grupobaco.cl)."
+        resp = obtener_responsable(config.get("cliente_id", "grupobaco"), "sensible")
+        correo_destino = resp["correo"] if resp and resp.get("correo") else notificar_a
+        enviar_correo(correo_destino, copia_a, nombre, cargo, consulta_a_enviar, numero)
+        registrar_caso(
+            cliente_id=config.get("cliente_id", "grupobaco"),
+            nombre=nombre,
+            numero=numero,
+            cargo=cargo,
+            local=detectar_local(historial),
+            consulta=consulta_a_enviar,
+            categoria="sensible",
+            responsable=correo_destino
+        )
+        cerrar_sesion(numero)
+        enviar_mensaje(numero, texto_respuesta)
+        return
+
     guardar_sesion(
         numero,
         historial,
