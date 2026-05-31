@@ -51,3 +51,34 @@ def registrar_caso(cliente_id, nombre, numero, cargo, local, consulta, categoria
     except Exception as e:
         print(f"⚠️  Error registrando caso en Supabase: {e}")
         return None
+
+
+def obtener_responsable(cliente_id, categoria):
+    """Lee areas_derivacion y devuelve el responsable activo de una categoría.
+
+    Retorna {"nombre": ..., "correo": ...} si encuentra la fila, o None si no hay
+    cliente Supabase, no hay match, o cualquier error. Nunca lanza excepción.
+    """
+    if not supabase_client:
+        print("Supabase no disponible, no se puede obtener responsable")
+        return None
+    try:
+        result = (
+            supabase_client.table("areas_derivacion")
+            .select("responsable_nombre, responsable_correo")
+            .eq("cliente_id", cliente_id)
+            .eq("nombre", categoria)
+            .eq("activo", True)
+            .execute()
+        )
+        if not result.data:
+            print(f"⚠️  Sin responsable para cliente_id={cliente_id} categoria={categoria}")
+            return None
+        fila = result.data[0]
+        return {
+            "nombre": fila.get("responsable_nombre", ""),
+            "correo": fila.get("responsable_correo", ""),
+        }
+    except Exception as e:
+        print(f"⚠️  Error obteniendo responsable: {e}")
+        return None
