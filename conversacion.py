@@ -10,7 +10,7 @@ from feriados import TZ_CHILE, calcular_dias_habiles
 from locales import detectar_local
 from whatsapp import enviar_mensaje, enviar_botones_si_no
 from correo import enviar_correo
-from casos import registrar_caso
+from casos import registrar_caso, obtener_responsable
 from intenciones import es_confirmacion, es_rechazo, es_sin_respuesta, es_emergencia
 
 load_dotenv()
@@ -61,18 +61,31 @@ def procesar_mensaje(numero, mensaje_usuario):
         if es_confirmacion(mensaje_usuario):
             # Usar el mensaje_caso guardado cuando se detectó la derivación
             primer_mensaje = sesion.get("mensaje_caso", "") or mensaje_usuario
-            enviar_correo(notificar_a, copia_a, nombre, cargo, primer_mensaje, numero)
+            # Categoría que Claude clasificó (PASO 9), con fallback a operacional
+            categoria_caso = sesion.get("categoria", "") or "operacional"
+            # Casos sensibles: NO transportar el contenido de la denuncia por correo ni Supabase.
+            # Solo un aviso al responsable de área. El canal formal (QR Ley Karin / denuncia@...)
+            # es el único registro válido del contenido. Aplica también a la sesión, para que
+            # un escalamiento posterior (Caso 2) tampoco filtre el contenido real.
+            if categoria_caso == "sensible":
+                consulta_a_enviar = "Caso sensible reportado — contenido reservado por confidencialidad. Gestionar por el canal formal (Ley Karin / denuncia@grupobaco.cl)."
+            else:
+                consulta_a_enviar = primer_mensaje
+            # Routing por categoría: buscar responsable en areas_derivacion. Si no hay match,
+            # caemos al notificar_a del whitelist para no perder la derivación.
+            resp = obtener_responsable(config.get("cliente_id", "grupobaco"), categoria_caso)
+            correo_destino = resp["correo"] if resp and resp.get("correo") else notificar_a
+            enviar_correo(correo_destino, copia_a, nombre, cargo, consulta_a_enviar, numero)
             # Registrar caso en Supabase (no bloqueante)
-            categoria_caso = "sensible" if sesion.get("caso_sensible") else "operacional"
             registrar_caso(
                 cliente_id=config.get("cliente_id", "grupobaco"),
                 nombre=nombre,
                 numero=numero,
                 cargo=cargo,
                 local=detectar_local(sesion.get("historial", [])),
-                consulta=primer_mensaje,
+                consulta=consulta_a_enviar,
                 categoria=categoria_caso,
-                responsable=notificar_a
+                responsable=correo_destino
             )
             # Mantener historial para que Claude recuerde el contexto (nombre, local)
             historial_actual = sesion.get("historial", [])
@@ -85,8 +98,9 @@ def procesar_mensaje(numero, mensaje_usuario):
                 caso_derivado=True,
                 fecha_derivacion=datetime.now(tz=TZ_CHILE).isoformat(),
                 escalamiento_nivel=0,
-                mensaje_caso=primer_mensaje,
-                esperando_continuacion=True
+                mensaje_caso=consulta_a_enviar,
+                esperando_continuacion=True,
+                mensajes_derivados=len([m for m in historial_actual if m.get("role") == "user"])
             )
             if sesion.get("caso_sensible", False):
                 enviar_botones_si_no(numero, f"Cuídate mucho {nombre}. Hiciste lo correcto al comunicarlo 🙏\n\n¿Necesitas ayuda con algo más?")
@@ -172,7 +186,11 @@ def procesar_mensaje(numero, mensaje_usuario):
     # Guardar mensaje original cuando se detecta derivación nueva o emergencia
     # Construir consulta completa: todos los mensajes del usuario excepto identificación del local
     if derivacion_detectada or emergencia_detectada:
-        msgs_usuario = [m["content"] for m in historial if m.get("role") == "user"]
+        # Solo considerar mensajes posteriores a la última derivación, para que un caso
+        # nuevo no arrastre la consulta de un caso ya derivado. El contador se actualiza
+        # en Caso 1 al confirmar la derivación (ver sub-paso 3).
+        ya_derivados = sesion.get("mensajes_derivados", 0) if sesion else 0
+        msgs_usuario = [m["content"] for m in historial if m.get("role") == "user"][ya_derivados:]
         # Excluir mensajes de identificación de local (números del 1 al 13)
         msgs_filtrados = [m for m in msgs_usuario if not (m.strip().isdigit() and 1 <= int(m.strip()) <= 13)]
         # Excluir saludos cortos y confirmaciones
@@ -212,7 +230,8 @@ def procesar_mensaje(numero, mensaje_usuario):
         notificar_a=notificar_a,
         copia_a=copia_a,
         caso_sensible=sensible_detectado,
-        mensaje_caso=mensaje_caso_a_guardar
+        mensaje_caso=mensaje_caso_a_guardar,
+        categoria=categoria_detectada
     )
 
     if derivacion_detectada:
