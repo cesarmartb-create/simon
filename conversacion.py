@@ -245,11 +245,11 @@ def procesar_mensaje(numero, mensaje_usuario):
         enviar_mensaje(numero, texto_respuesta)
         return
 
-    # Solo activar el flujo de confirmación con botones cuando ya hay local detectado.
-    # Si "derivación" aparece durante PASO 1 (identificación), el colaborador todavía debe
-    # escribir el número del local — no tiene sentido pedirle un Sí/No.
-    tiene_local = bool(detectar_local(historial))
-    derivacion_efectiva = derivacion_detectada and tiene_local
+    # La autenticación por whitelist al inicio de procesar_mensaje ya garantiza que es un
+    # colaborador conocido. La derivación se activa apenas Claude la propone, sin depender
+    # de que el local esté en el historial de esta sesión (antes se perdían derivaciones
+    # cuando el colaborador volvía sin re-identificar su local).
+    derivacion_efectiva = derivacion_detectada
 
     guardar_sesion(
         numero,
