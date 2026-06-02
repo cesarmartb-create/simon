@@ -62,10 +62,34 @@ def enviar_correo(destinatario, copia, nombre_empleado, cargo, mensaje_original,
         </div>
     </div>
     """
+    # Versión de texto plano del correo. Enviar HTML + texto plano es buena práctica de
+    # correo transaccional y reduce la penalización de los filtros antispam (regla
+    # MIME_HTML_ONLY). Usa las mismas variables que el HTML, así que respeta la
+    # confidencialidad: en casos sensibles, mensaje_original ya viene sin el contenido real.
+    if nivel_escalamiento == 1:
+        alerta_texto = "ATENCION: Esta consulta lleva 1 dia habil sin respuesta.\n\n"
+    elif nivel_escalamiento >= 2:
+        alerta_texto = f"ATENCION: Esta consulta lleva {nivel_escalamiento} dias habiles sin respuesta y ha sido escalada.\n\n"
+    else:
+        alerta_texto = ""
+
+    cuerpo_texto = (
+        f"{titulo_correo}\n"
+        f"Grupo Baco\n\n"
+        f"{alerta_texto}"
+        f"Hola, tienes una consulta que requiere tu atencion:\n\n"
+        f"Colaborador: {nombre_empleado}\n"
+        f"Cargo: {cargo_fmt}\n"
+        f"Telefono: +{numero_empleado}\n"
+        f"Consulta: {mensaje_original}\n\n"
+        f"Este mensaje fue generado automaticamente por Simon - Grupo Baco"
+    )
+
     mensaje = Mail(
         from_email=remitente,
         to_emails=destinatario,
         subject=asunto,
+        plain_text_content=cuerpo_texto,
         html_content=cuerpo_html
     )
     if copia:
