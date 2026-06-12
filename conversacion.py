@@ -190,7 +190,7 @@ def procesar_mensaje(numero, mensaje_usuario):
     if derivar_etiqueta is not None:
         derivacion_detectada = (derivar_etiqueta == "si")
     else:
-        derivacion_detectada = any(p in texto_respuesta.lower() for p in ["derivar", "derivarte", "notificar", "notifique", "notificaré"])
+        derivacion_detectada = any(p in texto_respuesta.lower() for p in ["derivar", "derivarte", "notificar", "notifique", "notificaré", "derivo", "confirmas"])
     sensible_detectado = any(p in texto_respuesta.lower() for p in ["ley karin", "qr", "denuncia@grupobaco", "confidencial", "hostigamiento", "acoso"])
     emergencia_detectada = es_emergencia(mensaje_usuario)
 
