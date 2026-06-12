@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from config import obtener_cliente_activo, cargar_whitelist, obtener_empleado
 from sesion import obtener_sesion, guardar_sesion, cerrar_sesion
 from feriados import TZ_CHILE, calcular_dias_habiles
-from locales import detectar_local
 from whatsapp import enviar_mensaje, enviar_botones_si_no
 from correo import enviar_correo
 from casos import registrar_caso, obtener_responsable
@@ -33,6 +32,7 @@ def procesar_mensaje(numero, mensaje_usuario):
     cargo = empleado.get("cargo", "")
     notificar_a = empleado.get("notificar_a", "")
     copia_a = empleado.get("copia_a", "")
+    ubicacion = empleado.get("ubicacion", "")
 
     sesion = obtener_sesion(numero)
 
@@ -82,7 +82,7 @@ def procesar_mensaje(numero, mensaje_usuario):
                 nombre=nombre,
                 numero=numero,
                 cargo=cargo,
-                local=detectar_local(sesion.get("historial", [])),
+                local=ubicacion,
                 consulta=consulta_a_enviar,
                 categoria=categoria_caso,
                 responsable=correo_destino
@@ -225,7 +225,7 @@ def procesar_mensaje(numero, mensaje_usuario):
             nombre=nombre,
             numero=numero,
             cargo=cargo,
-            local=detectar_local(historial),
+            local=ubicacion,
             consulta=mensaje_caso_a_guardar,
             categoria="accidente",
             responsable=correo_emergencia
@@ -247,7 +247,7 @@ def procesar_mensaje(numero, mensaje_usuario):
             nombre=nombre,
             numero=numero,
             cargo=cargo,
-            local=detectar_local(historial),
+            local=ubicacion,
             consulta=consulta_a_enviar,
             categoria="sensible",
             responsable=correo_destino
