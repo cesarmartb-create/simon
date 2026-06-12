@@ -23,6 +23,22 @@
       "ubicacion": "local_prueba",
       "notificar_a": "cesar.martinez@jcsfarmacias.cl",
       "copia_a": "cesarmartb@gmail.com"
+    },
+    {
+      "numero": "56973989062",
+      "nombre": "Nayarhet",
+      "cargo": "prevencionista_de_riesgos",
+      "ubicacion": "corporativo",
+      "notificar_a": "cesar.martinez@grupobaco.cl",
+      "copia_a": ""
+    },
+    {
+      "numero": "56987338760",
+      "nombre": "Maria Andrea",
+      "cargo": "gerente_de_operaciones",
+      "ubicacion": "corporativo",
+      "notificar_a": "cesar.martinez@grupobaco.cl",
+      "copia_a": ""
     }
   ]
 }
