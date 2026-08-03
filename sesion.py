@@ -26,7 +26,7 @@ def obtener_sesion(numero):
         return None
 
 
-def guardar_sesion(numero, historial=None, pendiente_correo=None, notificar_a=None, copia_a=None, caso_derivado=None, fecha_derivacion=None, escalamiento_nivel=None, mensaje_caso=None, caso_sensible=None, esperando_continuacion=None, categoria=None, mensajes_derivados=None):
+def guardar_sesion(numero, historial=None, pendiente_correo=None, notificar_a=None, copia_a=None, caso_derivado=None, fecha_derivacion=None, escalamiento_nivel=None, mensaje_caso=None, caso_sensible=None, esperando_continuacion=None, categoria=None, mensajes_derivados=None, canal_sensible=None):
     try:
         # Partir de la sesion existente (si la hay) para no borrar campos
         anterior = obtener_sesion(numero) or {}
@@ -44,6 +44,7 @@ def guardar_sesion(numero, historial=None, pendiente_correo=None, notificar_a=No
             "esperando_continuacion": False,
             "categoria": "",
             "mensajes_derivados": 0,
+            "canal_sensible": "",
         }
 
         nuevos = {
@@ -59,6 +60,7 @@ def guardar_sesion(numero, historial=None, pendiente_correo=None, notificar_a=No
             "esperando_continuacion": esperando_continuacion,
             "categoria": categoria,
             "mensajes_derivados": mensajes_derivados,
+            "canal_sensible": canal_sensible,
         }
 
         sesion = {}

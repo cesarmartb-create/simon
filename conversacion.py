@@ -17,6 +17,14 @@ load_dotenv()
 ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY")
 
 
+def mensaje_interno_sensible(canal):
+    if canal == "ley_karin":
+        return "Caso sensible reportado (Ley Karin / acoso) — contenido reservado por confidencialidad. Canal formal: QR Ley Karin del local."
+    if canal == "denuncia_economica":
+        return "Caso sensible reportado (denuncia económica) — contenido reservado por confidencialidad. Canal formal: denuncia@grupobaco.cl."
+    return "Caso sensible reportado — contenido reservado por confidencialidad. Gestionar por el canal formal (Ley Karin / denuncia@grupobaco.cl)."
+
+
 def procesar_mensaje(numero, mensaje_usuario):
     config = obtener_cliente_activo()
     if not config:
@@ -68,7 +76,8 @@ def procesar_mensaje(numero, mensaje_usuario):
             # es el único registro válido del contenido. Aplica también a la sesión, para que
             # un escalamiento posterior (Caso 2) tampoco filtre el contenido real.
             if categoria_caso == "sensible":
-                consulta_a_enviar = "Caso sensible reportado — contenido reservado por confidencialidad. Gestionar por el canal formal (Ley Karin / denuncia@grupobaco.cl)."
+                canal_sensible_caso = sesion.get("canal_sensible")
+                consulta_a_enviar = mensaje_interno_sensible(canal_sensible_caso)
             else:
                 consulta_a_enviar = primer_mensaje
             # Routing por categoría: buscar responsable en areas_derivacion. Si no hay match,
@@ -175,11 +184,15 @@ def procesar_mensaje(numero, mensaje_usuario):
     # (que fallaba con conjugaciones como "notifique" en vez de "notificar").
     match_derivar = re.search(r"\[\[\s*DERIVAR\s*:\s*(si|no)\s*\]\]", texto_respuesta_raw, re.IGNORECASE)
     derivar_etiqueta = match_derivar.group(1).lower() if match_derivar else None
+    # Extrae [[CANAL_SENSIBLE: x]], presente solo cuando CATEGORIA es sensible (PASO 9).
+    match_canal_sensible = re.search(r"\[\[\s*CANAL_SENSIBLE\s*:\s*(ley_karin|denuncia_economica|duda)\s*\]\]", texto_respuesta_raw, re.IGNORECASE)
+    canal_sensible_detectado = match_canal_sensible.group(1).lower() if match_canal_sensible else None
     # Reemplaza la etiqueta por un espacio (no por vacío) para no pegar palabras si quedó a
     # mitad del texto. Luego colapsa solo whitespace horizontal (espacios y tabs), preservando
     # los \n que Simón usa entre puntos del mensaje.
     texto_respuesta = re.sub(r"\[\[\s*CATEGORIA\s*:\s*[a-z_]+\s*\]\]", " ", texto_respuesta_raw, flags=re.IGNORECASE)
     texto_respuesta = re.sub(r"\[\[\s*DERIVAR\s*:\s*(?:si|no)\s*\]\]", " ", texto_respuesta, flags=re.IGNORECASE)
+    texto_respuesta = re.sub(r"\[\[\s*CANAL_SENSIBLE\s*:\s*(?:ley_karin|denuncia_economica|duda)\s*\]\]", " ", texto_respuesta, flags=re.IGNORECASE)
     texto_respuesta = re.sub(r"[ \t]+", " ", texto_respuesta).strip()
     print(f"Categoria detectada: {categoria_detectada}")
 
@@ -238,7 +251,7 @@ def procesar_mensaje(numero, mensaje_usuario):
     # Si un mensaje dispara también emergencia, ese branch ya retornó arriba — emergencia gana.
     # El canal oficial (QR Ley Karin / denuncia@grupobaco.cl) es el único registro válido del contenido.
     if categoria_detectada == "sensible":
-        consulta_a_enviar = "Caso sensible reportado — contenido reservado por confidencialidad. Gestionar por el canal formal (Ley Karin / denuncia@grupobaco.cl)."
+        consulta_a_enviar = mensaje_interno_sensible(canal_sensible_detectado)
         resp = obtener_responsable(config.get("cliente_id", "grupobaco"), "sensible")
         correo_destino = resp["correo"] if resp and resp.get("correo") else notificar_a
         enviar_correo(correo_destino, copia_a, nombre, cargo, consulta_a_enviar, numero)
@@ -270,7 +283,8 @@ def procesar_mensaje(numero, mensaje_usuario):
         copia_a=copia_a,
         caso_sensible=sensible_detectado,
         mensaje_caso=mensaje_caso_a_guardar,
-        categoria=categoria_detectada
+        categoria=categoria_detectada,
+        canal_sensible=canal_sensible_detectado
     )
 
     if derivacion_efectiva:
